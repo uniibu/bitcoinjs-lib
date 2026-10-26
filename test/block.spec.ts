@@ -1,8 +1,10 @@
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'mocha';
-import { Block } from '..';
+import { Block } from 'bitcoinjs-lib';
+import * as tools from 'uint8array-tools';
 
-import * as fixtures from './fixtures/block.json';
+import fixtures from './fixtures/block.json';
+import coreBlocks from './fixtures/core/blocks.json';
 
 describe('Block', () => {
   describe('version', () => {
@@ -23,7 +25,7 @@ describe('Block', () => {
         const bits = parseInt(f.bits, 16);
 
         assert.strictEqual(
-          Block.calculateTarget(bits).toString('hex'),
+          tools.toHex(Block.calculateTarget(bits)),
           f.expected,
         );
       });
@@ -36,13 +38,10 @@ describe('Block', () => {
         const block = Block.fromHex(f.hex);
 
         assert.strictEqual(block.version, f.version);
-        assert.strictEqual(block.prevHash!.toString('hex'), f.prevHash);
-        assert.strictEqual(block.merkleRoot!.toString('hex'), f.merkleRoot);
+        assert.strictEqual(tools.toHex(block.prevHash!), f.prevHash);
+        assert.strictEqual(tools.toHex(block.merkleRoot!), f.merkleRoot);
         if (block.witnessCommit) {
-          assert.strictEqual(
-            block.witnessCommit.toString('hex'),
-            f.witnessCommit,
-          );
+          assert.strictEqual(tools.toHex(block.witnessCommit), f.witnessCommit);
         }
         assert.strictEqual(block.timestamp, f.timestamp);
         assert.strictEqual(block.bits, f.bits);
@@ -62,6 +61,21 @@ describe('Block', () => {
           Block.fromHex(f.hex);
         }, new RegExp(f.exception));
       });
+    });
+
+    it('does not copy the remaining block for every transaction', () => {
+      let copiedBytes = 0;
+      class CountingUint8Array extends Uint8Array {
+        slice(start?: number, end?: number): Uint8Array {
+          if (end === undefined) copiedBytes += this.length - (start ?? 0);
+          return super.slice(start, end);
+        }
+      }
+      const buffer = new CountingUint8Array(tools.fromHex(coreBlocks[0].hex));
+
+      Block.fromBuffer(buffer);
+
+      assert.strictEqual(copiedBytes, 0);
     });
   });
 
@@ -89,7 +103,7 @@ describe('Block', () => {
       });
 
       it('returns ' + f.id + ' for ' + f.description, () => {
-        assert.strictEqual(block.getHash().toString('hex'), f.hash);
+        assert.strictEqual(tools.toHex(block.getHash()), f.hash);
         assert.strictEqual(block.getId(), f.id);
       });
     });
@@ -129,7 +143,7 @@ describe('Block', () => {
 
       it('returns ' + f.merkleRoot + ' for ' + f.id, () => {
         assert.strictEqual(
-          Block.calculateMerkleRoot(block.transactions!).toString('hex'),
+          tools.toHex(Block.calculateMerkleRoot(block.transactions!)),
           f.merkleRoot,
         );
       });
@@ -137,9 +151,7 @@ describe('Block', () => {
       if (f.witnessCommit) {
         it('returns witness commit ' + f.witnessCommit + ' for ' + f.id, () => {
           assert.strictEqual(
-            Block.calculateMerkleRoot(block.transactions!, true).toString(
-              'hex',
-            ),
+            tools.toHex(Block.calculateMerkleRoot(block.transactions!, true)),
             f.witnessCommit,
           );
         });
@@ -160,6 +172,24 @@ describe('Block', () => {
       it('returns ' + f.valid + ' for ' + f.id, () => {
         assert.strictEqual(block.checkTxRoots(), true);
       });
+    });
+
+    it('rejects a duplicated transaction that preserves the merkle root', () => {
+      const original = Block.fromHex(coreBlocks[0].hex);
+      const forged = Block.fromHex(coreBlocks[0].hex);
+      const transactions = forged.transactions!;
+      transactions.push(transactions[transactions.length - 1]);
+      const parsed = Block.fromHex(forged.toHex());
+      const mutation = { value: false };
+
+      assert.deepStrictEqual(
+        Block.calculateMerkleRoot(parsed.transactions!, false, mutation),
+        original.merkleRoot,
+      );
+      assert.strictEqual(mutation.value, true);
+      assert.strictEqual(parsed.getId(), original.getId());
+      assert.strictEqual(original.checkTxRoots(), true);
+      assert.strictEqual(parsed.checkTxRoots(), false);
     });
   });
 

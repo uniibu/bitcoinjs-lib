@@ -1,3 +1,108 @@
+# 7.0.5
+__fixed__
+- Reject negative, zero and overflowing compact targets in `Block.checkProofOfWork()`. Corresponding backport versions: 5.2.3 and 6.1.10.
+
+# 7.0.4
+__fixed__
+- Resolve PSBT input UTXOs consistently for signing, validation and fee accounting. This fix is also available in versions 5.2.2 and 6.1.9.
+
+# 7.0.3
+__fixed__
+- Avoid repeated buffer copies when parsing transactions and blocks.
+- Update `bip174` to `^3.0.1`, `varuint-bitcoin` to `^2.0.1` and `uint8array-tools` to `^0.0.10`.
+
+# 7.0.2
+__fixed__
+- Detect duplicate pairs when computing Merkle roots and reject blocks with mutated transaction trees. This fix is also available in versions 5.2.1 and 6.1.8.
+
+# 7.0.1
+__added__
+- `crypto`: Restore `ripemd160`, `sha1`, and `sha256` hash helpers (#2248)
+- `p2ms`: Support up to 20 public keys for n-of-20 multisig (previously capped at 16). This is relevant for P2WSH-wrapped multisig where the P2SH script-size limit does not apply. (#2297)
+
+__fixed__
+- `psbt`: Remove unnecessary `tapInternalKey` check for signature validation of taproot inputs (#2270)
+- Bump `valibot` dependency (#2308)
+
+# 7.0.0
+__breaking__
+- **Buffer → Uint8Array**: All public APIs now use standard `Uint8Array` instead of Node.js `Buffer`. This affects all payment types, `Transaction`, `Psbt`, `Block`, and `script` modules. `Buffer` (a `Uint8Array` subclass) is still accepted as input, but return types are now `Uint8Array`. (#2161)
+- **Transaction values: number → bigint**: `Transaction.Output.value` changed from `number` to `bigint`. `Psbt` output values, `Psbt.getFee()`, and `witnessUtxo.value` are all `bigint` now. Update your code: `value: 10000` → `value: BigInt(10000)` or `value: 10000n`.
+- **typeforce → valibot**: Runtime type validation switched from `typeforce` to `valibot`. All `typeforce` re-exports removed (`Buffer256bit`, `Hash160bit`, `Hash256bit`, `Number`, `Array`, `Boolean`, `String`, `Buffer`, `Hex`, `UInt8`, `UInt32`, `BufferN`, `Null`, `oneOf`, `maybe`, `tuple`, `Function`, `Satoshi`). Replaced by valibot schemas (`Buffer256bitSchema`, `Hash160bitSchema`, `Hash256bitSchema`, `BufferSchema`, `HexSchema`, `UInt8Schema`, `UInt32Schema`, `SatoshiSchema`, `NBufferSchemaFactory`).
+- **ESM support**: Package is now dual CJS/ESM. Added `"type": "module"` and `exports` field in `package.json`. CJS files use `.cjs` extension. Internal import paths now require `.js` extension.
+- **Node.js ≥ 18 required**: Minimum Node.js version bumped from 8 to 18.
+- **Dependency major bumps**: `bip174` 2.x → 3.x, `bs58check` 3.x → 4.x, `varuint-bitcoin` 1.x → 2.x.
+
+__added__
+- `uint8array-tools` dependency for cross-platform Uint8Array utilities
+- `valibot` dependency for runtime type validation
+- `toXOnly` exported from `psbt/bip371`
+- Taproot multisig with verified unspendable internalPubkey example
+- Better error message when signing a transaction without outputs
+
+__changed__
+- Coverage tooling switched from `nyc` to `c8`
+- TypeScript execution switched from `ts-node` to `tsx`
+- Fix tx version read/write to use uint32 instead of int32
+
+__fixed__
+- Fix multisig taproot example's provable nonce calculation
+- Various typo fixes
+
+# 6.1.7
+__added__
+- skip ecc library verification via DANGER_DO_NOT_VERIFY_ECCLIB flag
+
+# 6.1.6
+__fixed__
+- Fix sighash treatment when signing taproot script sign scripts using Psbt (#2104)
+- Fix error for invalid scripts in toASM (#2097)
+- Fix mutation of input to addOutput method on Psbt (#2091)
+
+# 6.1.5
+__fixed__
+- Updated bip174 dependency to fix issue with unknownKeyVals. (#1979)
+
+# 6.1.4
+__changed__
+- Changed internal usage of the Buffer API to match with newer broken bundlers that don't follow spec. The new usage is still compatible with older versions of Buffer, so there shouldn't be any breakage. The public API interface was not changed. (#1975)
+
+# 6.1.3
+__fixed__
+- validateSignaturesOfInput for taproot inputs returned false for valid signatures in specific cases. (#1934)
+
+# 6.1.2
+__fixed__
+- validateSignaturesOfInput for taproot inputs returned true for invalid signatures in specific cases. (#1932)
+
+# 6.1.1
+__added__
+- add example using BIP86 vector to verify the sending to and from a BIP86 generated taproot address
+
+__fixed__
+- support for 65 byte taproot signature
+- prevent the creation of unspendable scripts in bitcoinjs-lib by implementing checks for resource limitations
+- use `Buffer.from()` instead of `Buffer.of()`
+
+__changed__
+- performance: precompute the taproot hashes
+- performance: switch from `create-hash` and `ripemd160` to noble-hashes
+
+__removed__
+- types: removed unused methods `privateAdd` and `privateNegate` from `TinySecp256k1Interface`
+
+# 6.1.0
+__added__
+- taproot support for payments (p2tr) and PSBT. See taproot.spec.ts integration test for examples. (#1742)
+
+# 6.0.2
+__fixed__
+- p2sh payment now uses empty Buffer for redeem.output when redeemScript is OP_FALSE (#1802)
+- Fix ripemd160 hashing fallback issue (#1812)
+
+# 6.0.1
+- No changes to public API
+
 # 6.0.0
 __removed__
 - bip32: Removed the re-export. Please add as dependency to your app instead.
@@ -283,18 +388,18 @@ __fixed__
 
 # 2.1.0
 From this release users should use the HDNode directly (compared to accessing `.keyPair`) when performing ECDSA operations such as `sign` or `verify`.
-Ideally you shoud not have to directly access `HDNode` internals for general usage,  as it can often be confusing and error prone.
+Ideally you should not have to directly access `HDNode` internals for general usage,  as it can often be confusing and error prone.
 
 __added__
 - `ECPair.prototype.getNetwork`
-- `HDNode.prototype.getNetwork`, wraps the underyling keyPair's `getNetwork` method
-- `HDNode.prototype.getPublicKeyBuffer`, wraps the underyling keyPair's `getPublicKeyBuffer` method
+- `HDNode.prototype.getNetwork`, wraps the underlying keyPair's `getNetwork` method
+- `HDNode.prototype.getPublicKeyBuffer`, wraps the underlying keyPair's `getPublicKeyBuffer` method
 - `HDNode.prototype.sign`, wraps the underlying keyPair's `sign` method
 - `HDNode.prototype.verify`, wraps the underlying keyPair's `verify` method
 
 
 # 2.0.0
-In this release we have strived to simplify the API,  [using native types](https://github.com/bitcoinjs/bitcoinjs-lib/issues/407) wherevever possible to encourage cross-compatibility with other open source community modules.
+In this release we have strived to simplify the API,  [using native types](https://github.com/bitcoinjs/bitcoinjs-lib/issues/407) wherever possible to encourage cross-compatibility with other open source community modules.
 
 The `ecdsa` module has been removed in lieu of using a new ECDSA module (for performance and safety reasons) during the `2.x.y` major release.
 Several other cumbersome modules have been removed,  with their new independent modules recommended for usage instead for greater modularity in your projects.
